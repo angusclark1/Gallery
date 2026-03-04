@@ -1,0 +1,55 @@
+services:
+  cobble-sql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    platform: linux/amd64
+    container_name: cobble-sql
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "YourStrong!Passw0rd"
+    ports:
+      - "1433:1433"
+    volumes:
+      - cobble_sql_data:/var/opt/mssql
+      - ./db:/var/opt/mssql/backup
+
+  cobble-db-restore:
+    image: mcr.microsoft.com/mssql-tools:latest
+    platform: linux/amd64
+    container_name: cobble-db-restore
+    depends_on:
+      - cobble-sql
+    volumes:
+      - ./db:/db
+    entrypoint: >
+      bash -lc "
+      echo 'Waiting for SQL Server...' &&
+      for i in {1..60}; do
+        /opt/mssql-tools/bin/sqlcmd -S cobble-sql,1433 -U sa -P 'YourStrong!Passw0rd' -Q 'SELECT 1' && break
+        echo '...not ready yet' && sleep 2
+      done &&
+      echo 'Running restore.sql' &&
+      /opt/mssql-tools/bin/sqlcmd -S cobble-sql,1433 -U sa -P 'YourStrong!Passw0rd' -i /db/restore.sql
+      "
+    restart: "no"
+
+  cobble-gallery-api:
+    build: .
+    container_name: cobble-gallery-api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: "http://+:8080"
+      ConnectionStrings__CobbleDb: "Server=cobble-sql,1433;Database=Cobble;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;"
+    ports:
+      - "8080:8080"
+    depends_on:
+      - cobble-sql
+  cobble-gallery-ui:
+    build: ./frontend
+    container_name: cobble-gallery-ui
+    ports:
+      - "3000:80"
+    depends_on:
+      - cobble-gallery-api
+
+volumes:
+  cobble_sql_data:

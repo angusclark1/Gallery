@@ -1,0 +1,11 @@
+{
+  "Version": 1,
+  "Hash": "DlBdCwRrOtX5/2WiuSsk6CY3bcWksa4uRUqrmiFFAZw=",
+  "Source": "Cobble.GalleryService",
+  "BasePath": "_content/Cobble.GalleryService",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [],
+  "Assets": []
+}
