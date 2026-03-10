@@ -1,79 +1,126 @@
 <!doctype html>
-<html lang="en">
+<html>
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Cobble Gallery</title>
-    <link rel="stylesheet" href="style.css" />
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <title>Cobble Gallery Demo</title>
+    <style>
+        body { font-family: Arial; padding: 20px; max-width: 900px; margin: auto; }
+        .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+        input, select { padding: 8px; }
+        button { padding: 8px 12px; cursor: pointer; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(180px,1fr)); gap: 12px; margin-top: 16px; }
+        .card { border: 1px solid #ddd; border-radius: 10px; padding: 10px; }
+        img { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 8px; background: #f3f3f3; }
+        .small { font-size: 12px; opacity: 0.7; word-break: break-all; }
+    </style>
 </head>
 <body>
+<h2>Cobble Gallery Demo (Microservice)</h2>
 
-    <header class="site-header">
-        <h1>Cobble Gallery</h1>
-        <span class="status-dot" id="statusDot"></span>
-    </header>
+<div class="row">
+    <label>API Base:</label>
+    <input id="apiBase" value="http://localhost:8080" style="width:340px" />
+    <label>MemberID:</label>
+    <input id="memberId" style="width:420px" />
+    <button onclick="loadGallery()">Load</button>
+</div>
 
-    <div class="layout">
+<hr/>
 
-        <!-- LEFT: Controls -->
-        <aside class="controls-panel">
-            <section class="control-group">
-                <h2>Controls</h2>
-                <label for="apiBase">API Base</label>
-                <input id="apiBase" type="text" value="http://localhost:8080" />
-                <label for="memberId">Member ID</label>
-                <input id="memberId" type="text" placeholder="Enter member ID" />
-                <button class="btn-primary" onclick="loadGallery()">Load Gallery</button>
-            </section>
+<h3>Upload</h3>
+<div class="row">
+    <input id="title" placeholder="Title" />
+    <input id="description" placeholder="Description" />
+    <select id="privacy">
+        <option value="Pub">Pub</option>
+        <option value="Pvt" selected>Pvt</option>
+    </select>
+    <input id="file" type="file" accept="image/jpeg,image/png" />
+    <button onclick="upload()">Upload</button>
+</div>
 
-            <section class="control-group">
-                <h2>Upload Image</h2>
-                <label for="title">Title</label>
-                <input id="title" type="text" placeholder="e.g. Sunset" />
-                <label for="description">Description</label>
-                <input id="description" type="text" placeholder="Short description" />
-                <label for="privacy">Privacy</label>
-                <select id="privacy">
-                    <option value="Pub">Public</option>
-                    <option value="Pvt" selected>Private</option>
-                </select>
-                <label for="file">Image File</label>
-                <input id="file" type="file" accept="image/jpeg,image/png" />
-                <button class="btn-primary" onclick="upload()">Upload</button>
-            </section>
+<div id="status" style="margin-top:10px;"></div>
+<div id="grid" class="grid"></div>
 
-            <div id="status" class="status-msg"></div>
-        </aside>
+<script>
+    async function loadGallery() {
+        const apiBase = document.getElementById("apiBase").value.trim();
+        const memberId = document.getElementById("memberId").value.trim();
+        const status = document.getElementById("status");
+        const grid = document.getElementById("grid");
 
-        <!-- RIGHT: Gallery -->
-        <main class="gallery-main">
+        status.textContent = "Loading...";
+        grid.innerHTML = "";
 
-            <!-- Featured hex -->
-            <div class="featured-hex-wrap" id="featuredWrap">
-                <div class="featured-hex-inner" id="featuredInner">
-                    <div class="featured-hex-shape">
-                        <div class="featured-placeholder">
-                            <span>Select an image</span>
-                        </div>
-                        <img id="featuredImg" src="" alt="" style="display:none" />
-                    </div>
-                </div>
-                <div class="featured-info" id="featuredInfo">
-                    <h2 id="featuredTitle">—</h2>
-                    <p id="featuredDesc"></p>
-                    <div class="featured-meta" id="featuredMeta"></div>
-                    <button class="btn-danger" id="featuredDelete" style="display:none" onclick="delFeatured()">Delete</button>
-                </div>
-            </div>
+        const res = await fetch(`${apiBase}/api/gallery/${encodeURIComponent(memberId)}`);
+        if (!res.ok) {
+            status.textContent = `Load failed: ${res.status}`;
+            return;
+        }
+        const items = await res.json();
+        status.textContent = `Loaded ${items.length} item(s)`;
 
-            <!-- Hex grid -->
-            <ul class="honeycomb" id="grid"></ul>
-
-        </main>
-
+        grid.innerHTML = items.map(it => `
+    <div class="card">
+      <img src="${it.ThumbnailDataUrl || it.ImageDataUrl || ""}" alt="" />
+      <div><b>${escapeHtml(it.Title || "")}</b></div>
+      <div>${escapeHtml(it.Description || "")}</div>
+      <div class="small">ImageID: ${it.ImageID}</div>
+      <button onclick="del(${it.ImageID})">Delete</button>
     </div>
+  `).join("");
+    }
 
-    <script src="app.js"></script>
+    async function upload() {
+        const apiBase = document.getElementById("apiBase").value.trim();
+        const memberId = document.getElementById("memberId").value.trim();
+        const title = document.getElementById("title").value.trim();
+        const description = document.getElementById("description").value.trim();
+        const privacy = document.getElementById("privacy").value;
+        const file = document.getElementById("file").files[0];
+        const status = document.getElementById("status");
+
+        if (!memberId) return status.textContent = "MemberID required";
+        if (!file) return status.textContent = "Choose a file first";
+
+        const fd = new FormData();
+        fd.append("memberId", memberId);
+        fd.append("title", title);
+        fd.append("description", description);
+        fd.append("privacy", privacy);
+        fd.append("file", file);
+
+        status.textContent = "Uploading...";
+        const res = await fetch(`${apiBase}/api/gallery/upload`, { method: "POST", body: fd });
+        const text = await res.text();
+        if (!res.ok) {
+            status.textContent = `Upload failed: ${res.status} ${text}`;
+            return;
+        }
+        status.textContent = "Uploaded ✅";
+        await loadGallery();
+    }
+
+    async function del(imageId) {
+        const apiBase = document.getElementById("apiBase").value.trim();
+        const memberId = document.getElementById("memberId").value.trim();
+        const status = document.getElementById("status");
+
+        if (!confirm("Delete image?")) return;
+
+        status.textContent = "Deleting...";
+        const res = await fetch(`${apiBase}/api/gallery/${imageId}?memberId=${encodeURIComponent(memberId)}`, { method: "DELETE" });
+        if (!res.ok) {
+            status.textContent = `Delete failed: ${res.status}`;
+            return;
+        }
+        status.textContent = "Deleted ✅";
+        await loadGallery();
+    }
+
+    function escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, m => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;" }[m]));
+    }
+</script>
 </body>
 </html>
