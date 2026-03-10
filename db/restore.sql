@@ -38,7 +38,10 @@ CREATE TABLE dbo.gal_Gallery_Images_new (
 INSERT INTO dbo.gal_Gallery_Images_new
 (MemberID, ImageID, Image_data, PostDate)
 SELECT
-    MemberID, ImageID, Image_data, PostDate
+    MemberID,
+    ImageID,
+    Image_data,
+    PostDate
 FROM dbo.gal_Gallery_Images;
 
 DROP TABLE dbo.gal_Gallery_Images;
