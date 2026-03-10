@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cobble Gallery</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500;600;700&family=Syne:wght@300;400;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<!-- LOADING SCREEN -->
+<div class="loader-screen" id="loaderScreen">
+    <div class="loader-hex-wrap">
+        <div class="loader-hex" id="loaderHex"></div>
+    </div>
+    <div class="loader-title" id="loaderTitle"></div>
+    <div class="loader-sub" id="loaderSub"></div>
+</div>
+
+<div class="grain"></div>
+
+<header class="site-header">
+    <div class="header-left">
+        <h1 class="header-title">Cobble Gallery</h1>
+        <span class="header-eyebrow">
+                A microservice for uploading
+                viewing and deleting images
+                through the Cobble Gallery API
+            </span>
+    </div>
+    <div class="header-right">
+            <span class="live-badge">
+                <span class="live-dot"></span>
+                Live
+            </span>
+    </div>
+</header>
+
+<div class="layout">
+
+    <!-- LEFT: Controls -->
+    <aside class="controls-panel">
+        <section class="control-group">
+            <h2 class="group-title">Connection</h2>
+
+            <label for="apiBase">API Base</label>
+            <input id="apiBase" type="text" value="http://localhost:8080" />
+
+            <label for="memberId">Member ID</label>
+            <input id="memberId" type="text" placeholder="Enter member ID" />
+
+            <button class="btn-primary" onclick="loadGallery()">Load Gallery</button>
+        </section>
+
+        <div class="divider"></div>
+
+        <section class="control-group">
+            <h2 class="group-title">Upload</h2>
+
+            <label for="title">Title</label>
+            <input id="title" type="text" placeholder="e.g. Sunset Ridge" />
+
+            <label for="description">Description</label>
+            <input id="description" type="text" placeholder="Short description" />
+
+            <label for="privacy">Privacy</label>
+            <select id="privacy">
+                <option value="Pub">Public</option>
+                <option value="Pvt" selected>Private</option>
+            </select>
+
+            <label for="file">Image File</label>
+            <input id="file" type="file" accept="image/jpeg,image/png" />
+
+            <button class="btn-primary" onclick="upload()">Upload Image</button>
+        </section>
+
+        <div id="status" class="status-msg"></div>
+    </aside>
+
+    <!-- RIGHT: Gallery -->
+    <main class="gallery-main">
+
+        <!-- Featured hex -->
+        <div class="featured-hex-wrap" id="featuredWrap">
+            <div class="featured-hex-inner" id="featuredInner">
+                <div class="featured-hex-shape" id="featuredShape">
+                    <div class="featured-placeholder">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                            <rect x="3" y="3" width="18" height="18" rx="1"/>
+                            <circle cx="8.5" cy="8.5" r="1.5"/>
+                            <path d="m21 15-5-5L5 21"/>
+                        </svg>
+                        <span>Select an image</span>
+                    </div>
+                    <img id="featuredImg" src="" alt="" style="display:none" />
+                </div>
+            </div>
+
+            <div class="featured-info">
+                <p class="featured-eyebrow">Featured</p>
+                <h2 id="featuredTitle">Nothing selected</h2>
+                <p id="featuredDesc" class="featured-desc">
+                    Click any image in the gallery below to feature it here.
+                </p>
+                <div class="featured-meta" id="featuredMeta"></div>
+                <button class="btn-danger" id="featuredDelete" style="display:none" onclick="delFeatured()">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"/>
+                        <path d="M19 6l-1 14H6L5 6"/>
+                        <path d="M10 11v6M14 11v6"/>
+                        <path d="M9 6V4h6v2"/>
+                    </svg>
+                    Delete Image
+                </button>
+            </div>
+        </div>
+
+        <!-- Gallery label -->
+        <div class="gallery-header">
+            <h3 class="gallery-label">Gallery</h3>
+            <span class="gallery-count" id="galleryCount"></span>
+        </div>
+
+        <!-- Hex grid -->
+        <ul class="honeycomb" id="grid">
+            <li class="honeycomb-cell demo-cell" style="animation-delay:0ms">
+                <div class="hex-shape">
+                    <img class="hex-img" src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&q=80" alt="demo" />
+                    <div class="hex-overlay"><span class="hex-label">Mountains</span></div>
+                </div>
+            </li>
+
+            <li class="honeycomb-cell demo-cell" style="animation-delay:60ms">
+                <div class="hex-shape">
+                    <img class="hex-img" src="https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=400&q=80" alt="demo" />
+                    <div class="hex-overlay"><span class="hex-label">Forest</span></div>
+                </div>
+            </li>
+
+            <li class="honeycomb-cell demo-cell" style="animation-delay:120ms">
+                <div class="hex-shape">
+                    <img class="hex-img" src="https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?w=400&q=80" alt="demo" />
+                    <div class="hex-overlay"><span class="hex-label">Coast</span></div>
+                </div>
+            </li>
+
+            <li class="honeycomb-cell demo-cell" style="animation-delay:180ms">
+                <div class="hex-shape">
+                    <img class="hex-img" src="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400&q=80" alt="demo" />
+                    <div class="hex-overlay"><span class="hex-label">Ocean</span></div>
+                </div>
+            </li>
+
+            <li class="honeycomb-cell demo-cell" style="animation-delay:240ms">
+                <div class="hex-shape">
+                    <img class="hex-img" src="https://images.unsplash.com/photo-1511884642898-4c92249e20b6?w=400&q=80" alt="demo" />
+                    <div class="hex-overlay"><span class="hex-label">Desert</span></div>
+                </div>
+            </li>
+
+            <li class="honeycomb-cell honeycomb-hidden"></li>
+        </ul>
+
+    </main>
+</div>
+
+<script src="apps.js"></script>
+</body>
+</html>
