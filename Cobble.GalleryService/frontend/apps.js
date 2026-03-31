@@ -1,13 +1,141 @@
 let currentFeaturedId = null;
 
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.demo-cell').forEach(cell => {
+        cell.addEventListener('click', () => flyToFeatured(cell));
+    });
+    runLoader();
+});
+
+function runLoader() {
+    const loaderScreen = document.getElementById('loaderScreen');
+    const loaderTitle  = document.getElementById('loaderTitle');
+    const loaderSub    = document.getElementById('loaderSub');
+    const header       = document.querySelector('.site-header');
+    const layout       = document.querySelector('.layout');
+
+    const title = 'Cobble Gallery';
+    const lines = [
+        'A microservice for uploading,',
+        'viewing and deleting images',
+        'through the Cobble Gallery API'
+    ];
+
+    let i = 0;
+
+    function typeTitle() {
+        if (i < title.length) {
+            loaderTitle.textContent += title[i];
+            i++;
+            setTimeout(typeTitle, 110);
+        } else {
+            setTimeout(typeLines, 800);
+        }
+    }
+
+    let lineIndex = 0;
+    let charIndex = 0;
+
+    function typeLines() {
+        if (lineIndex === 0 && charIndex === 0) {
+            loaderSub.style.opacity = '1';
+        }
+
+        if (lineIndex >= lines.length) {
+            setTimeout(collapseLoader, 1800);
+            return;
+        }
+
+        const currentLine = lines[lineIndex];
+
+        if (charIndex === 0 && lineIndex > 0) {
+            loaderSub.innerHTML += '<br>';
+        }
+
+        if (charIndex < currentLine.length) {
+            if (charIndex === 0) {
+                loaderSub.innerHTML += '<span class="loader-line"></span>';
+            }
+            const spans = loaderSub.querySelectorAll('.loader-line');
+            spans[spans.length - 1].textContent += currentLine[charIndex];
+            charIndex++;
+            setTimeout(typeLines, 28);
+        } else {
+            lineIndex++;
+            charIndex = 0;
+            setTimeout(typeLines, 160);
+        }
+    }
+
+    setTimeout(typeTitle, 1200);
+
+    function collapseLoader() {
+        loaderTitle.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+        loaderSub.style.transition   = 'opacity 0.4s ease';
+        loaderTitle.style.opacity    = '0';
+        loaderTitle.style.transform  = 'translateY(-10px)';
+        loaderSub.style.opacity      = '0';
+
+        setTimeout(() => {
+            loaderScreen.classList.add('hide');
+        }, 500);
+
+        setTimeout(() => {
+            header.style.transition  = 'opacity 0.7s ease, transform 0.7s cubic-bezier(0.16, 1, 0.3, 1)';
+            header.classList.add('visible');
+        }, 800);
+
+        setTimeout(() => {
+            const panel  = document.querySelector('.controls-panel');
+            const main   = document.querySelector('.gallery-main');
+
+            if (panel) {
+                panel.style.transition = 'opacity 0.7s ease, transform 0.7s cubic-bezier(0.16, 1, 0.3, 1)';
+                panel.style.opacity    = '0';
+                panel.style.transform  = 'translateX(-16px)';
+            }
+            if (main) {
+                main.style.transition  = 'opacity 0.7s ease, transform 0.7s cubic-bezier(0.16, 1, 0.3, 1)';
+                main.style.opacity     = '0';
+                main.style.transform   = 'translateX(16px)';
+            }
+
+            layout.classList.add('visible');
+
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+                if (panel) {
+                    panel.style.opacity = '1';
+                    panel.style.transform = 'translateX(0)';
+                }
+                if (main) {
+                    main.style.opacity  = '1';
+                    main.style.transform  = 'translateX(0)';
+                }
+            }));
+        }, 1100);
+
+        setTimeout(() => {
+            loaderScreen.remove();
+        }, 1400);
+    }
+}
+
+function normalizePrivacy(value) {
+    return String(value || "").trim().toLowerCase();
+}
+
 async function loadGallery() {
     const apiBase = document.getElementById("apiBase").value.trim();
     const memberId = document.getElementById("memberId").value.trim();
-    const status = document.getElementById("status");
-    const grid = document.getElementById("grid");
+
+    const publicGrid = document.getElementById("publicGrid");
+    const privateGrid = document.getElementById("privateGrid");
 
     setStatus("Loading...");
-    grid.innerHTML = "";
+
+    publicGrid.querySelectorAll('.honeycomb-cell:not(.honeycomb-hidden)').forEach(el => el.remove());
+    privateGrid.querySelectorAll('.honeycomb-cell:not(.honeycomb-hidden)').forEach(el => el.remove());
+
     resetFeatured();
 
     const res = await fetch(`${apiBase}/api/gallery/${encodeURIComponent(memberId)}`);
@@ -17,26 +145,49 @@ async function loadGallery() {
     }
 
     const items = await res.json();
+
+    const publicItems = items.filter(it => normalizePrivacy(it.Private) === "pub");
+    const privateItems = items.filter(it => normalizePrivacy(it.Private) === "pvt");
+
     setStatus(`Loaded ${items.length} item(s)`);
+
+    const publicCountEl = document.getElementById("publicGalleryCount");
+    const privateCountEl = document.getElementById("privateGalleryCount");
+
+    if (publicCountEl) {
+        publicCountEl.textContent = `${publicItems.length} image${publicItems.length !== 1 ? "s" : ""}`;
+    }
+
+    if (privateCountEl) {
+        privateCountEl.textContent = `${privateItems.length} image${privateItems.length !== 1 ? "s" : ""}`;
+    }
+
+    renderGalleryItems(publicItems, publicGrid);
+    renderGalleryItems(privateItems, privateGrid);
+}
+
+function renderGalleryItems(items, grid) {
+    const filler = grid.querySelector('.honeycomb-hidden');
 
     items.forEach((it, i) => {
         const li = document.createElement("li");
         li.className = "honeycomb-cell";
-        li.style.animationDelay = `${i * 60}ms`;
+        li.style.animationDelay = `${i * 55}ms`;
         li.dataset.imageId = it.ImageID;
         li.dataset.title = it.Title || "";
         li.dataset.desc = it.Description || "";
-        li.dataset.privacy = it.Privacy || "";
-        li.dataset.src = it.ThumbnailDataUrl || it.ImageDataUrl || "";
+        li.dataset.privacy = it.Private || "";
 
         const imgSrc = it.ThumbnailDataUrl || it.ImageDataUrl || "";
+        li.dataset.src = imgSrc;
 
         li.innerHTML = `
             <div class="hex-shape">
-                ${imgSrc
-                    ? `<img class="hex-img" src="${imgSrc}" alt="${escapeHtml(it.Title || '')}" />`
-                    : `<div class="hex-img hex-no-preview">No preview</div>`
-                }
+                ${
+            imgSrc
+                ? `<img class="hex-img" src="${imgSrc}" alt="${escapeHtml(it.Title || '')}" />`
+                : `<div class="hex-img hex-no-preview">No preview</div>`
+        }
                 <div class="hex-overlay">
                     <span class="hex-label">${escapeHtml(it.Title || "Untitled")}</span>
                 </div>
@@ -44,64 +195,87 @@ async function loadGallery() {
         `;
 
         li.addEventListener("click", () => flyToFeatured(li));
-        grid.appendChild(li);
-    });
 
-    // Add hidden filler for honeycomb alignment
-    const filler = document.createElement("li");
-    filler.className = "honeycomb-cell honeycomb-hidden";
-    grid.appendChild(filler);
+        if (filler) grid.insertBefore(li, filler);
+        else grid.appendChild(li);
+    });
 }
 
 function flyToFeatured(cell) {
-    const featuredInner = document.getElementById("featuredInner");
-    const featuredShape = featuredInner.querySelector(".featured-hex-shape");
+    const featuredShape = document.getElementById("featuredShape");
+    if (!featuredShape) return;
 
-    const cellRect = cell.getBoundingClientRect();
-    const targetRect = featuredShape.getBoundingClientRect();
+    const imgEl = cell.querySelector('img.hex-img');
+    const src = imgEl ? imgEl.src : (cell.dataset.src || "");
 
-    // Clone the clicked cell
-    const clone = cell.cloneNode(true);
-    clone.classList.add("flying-hex");
+    if (src) {
+        const preloader = new Image();
+        preloader.src = src;
+    }
+
+    const fromRect = cell.getBoundingClientRect();
+    const toRect = featuredShape.getBoundingClientRect();
+
+    const clone = document.createElement('div');
+    clone.style.cssText = `
+        position: fixed;
+        left: ${fromRect.left}px;
+        top: ${fromRect.top}px;
+        width: ${fromRect.width}px;
+        height: ${fromRect.height}px;
+        z-index: 9999;
+        pointer-events: none;
+        transition: none;
+        transform-origin: center center;
+        overflow: visible;
+    `;
+
+    clone.innerHTML = `
+        <div style="
+            position: absolute;
+            top: -100%;
+            left: 0;
+            width: 100%;
+            height: 300%;
+            clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+            overflow: hidden;
+            background: #18181f;
+        ">
+            ${src ? `<img src="${src}" style="width:100%;height:100%;object-fit:cover;display:block;" />` : ''}
+        </div>
+    `;
+
     document.body.appendChild(clone);
 
-    Object.assign(clone.style, {
-        position: "fixed",
-        left: cellRect.left + "px",
-        top: cellRect.top + "px",
-        width: cellRect.width + "px",
-        height: cellRect.height + "px",
-        margin: 0,
-        transform: "none",
-        zIndex: 1000,
-        pointerEvents: "none"
-    });
+    const toCenterX = toRect.left + toRect.width / 2;
+    const toCenterY = toRect.top + toRect.height / 2;
+    const fromCenterX = fromRect.left + fromRect.width / 2;
+    const fromCenterY = fromRect.top + fromRect.height / 2;
 
-    const scaleX = targetRect.width / cellRect.width;
-    const scaleY = targetRect.height / cellRect.height;
-    const scale = Math.min(scaleX, scaleY) * 0.9;
+    const dx = toCenterX - fromCenterX;
+    const dy = toCenterY - fromCenterY;
+    const scale = (toRect.width / fromRect.width) * 0.88;
+
+    cell.style.transition = 'opacity 0.3s';
+    cell.style.opacity = '0.25';
 
     requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-            const dx = targetRect.left + targetRect.width / 2 - (cellRect.left + cellRect.width / 2);
-            const dy = targetRect.top + targetRect.height / 2 - (cellRect.top + cellRect.height / 2);
-            clone.style.transform = `translate(${dx}px, ${dy}px) scale(${scale}) rotateY(179deg)`;
+            clone.style.transition = 'transform 1.1s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.4s ease 0.75s';
+            clone.style.transform = `translate(${dx}px, ${dy}px) scale(${scale}) rotateY(180deg)`;
+            clone.style.opacity = '0';
         });
     });
 
-    clone.addEventListener("transitionend", () => {
+    setTimeout(() => {
         clone.remove();
-        updateFeatured(cell);
-    }, { once: true });
+        cell.style.opacity = '1';
+        revealFeatured(cell, src);
+    }, 1100);
 }
 
-function updateFeatured(cell) {
-    const src = cell.dataset.src;
-    const title = cell.dataset.title || "Untitled";
-    const desc = cell.dataset.desc || "";
-    const imageId = cell.dataset.imageId;
-    const privacy = cell.dataset.privacy || "";
-
+function revealFeatured(cell, src) {
+    const wrap = document.getElementById("featuredWrap");
     const featuredImg = document.getElementById("featuredImg");
     const placeholder = document.querySelector(".featured-placeholder");
 
@@ -114,34 +288,62 @@ function updateFeatured(cell) {
         if (placeholder) placeholder.style.display = "flex";
     }
 
-    document.getElementById("featuredTitle").textContent = title;
-    document.getElementById("featuredDesc").textContent = desc;
-    document.getElementById("featuredMeta").textContent = `ImageID: ${imageId}  •  ${privacy}`;
+    document.getElementById("featuredTitle").textContent = cell.dataset.title || "Untitled";
+    document.getElementById("featuredDesc").textContent = cell.dataset.desc || "No description provided.";
+    document.getElementById("featuredMeta").textContent =
+        cell.dataset.imageId
+            ? `ID: ${cell.dataset.imageId}  ·  ${cell.dataset.privacy || ""}`
+            : "Demo image";
 
     const deleteBtn = document.getElementById("featuredDelete");
-    deleteBtn.style.display = "inline-block";
+    if (cell.dataset.imageId) {
+        deleteBtn.style.display = "inline-flex";
+        currentFeaturedId = cell.dataset.imageId;
+    } else {
+        deleteBtn.style.display = "none";
+        currentFeaturedId = null;
+    }
 
-    currentFeaturedId = imageId;
+    wrap.classList.remove("has-image");
+    void wrap.offsetWidth;
+    wrap.classList.add("has-image");
 
-    document.getElementById("featuredWrap").classList.add("has-image");
+    document.getElementById("featuredInner").classList.add("has-selection");
+
+    wrap.style.transition = 'none';
+    wrap.style.opacity = '0';
+    wrap.style.transform = 'translateY(-10px) scale(0.98)';
+
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            wrap.style.transition = 'opacity 0.35s ease, transform 0.45s cubic-bezier(0.16, 1, 0.3, 1)';
+            wrap.style.opacity = '1';
+            wrap.style.transform = 'translateY(0) scale(1)';
+        });
+    });
 }
 
 function resetFeatured() {
-    document.getElementById("featuredImg").style.display = "none";
-    document.getElementById("featuredImg").src = "";
+    const featuredImg = document.getElementById("featuredImg");
     const placeholder = document.querySelector(".featured-placeholder");
+    const wrap = document.getElementById("featuredWrap");
+
+    featuredImg.style.display = "none";
+    featuredImg.src = "";
     if (placeholder) placeholder.style.display = "flex";
-    document.getElementById("featuredTitle").textContent = "—";
-    document.getElementById("featuredDesc").textContent = "";
+    document.getElementById("featuredTitle").textContent = "Nothing selected";
+    document.getElementById("featuredDesc").textContent = "Click any image in the gallery below to feature it here.";
     document.getElementById("featuredMeta").textContent = "";
     document.getElementById("featuredDelete").style.display = "none";
-    document.getElementById("featuredWrap").classList.remove("has-image");
+    wrap.classList.remove("has-image");
+    document.getElementById("featuredInner").classList.remove("has-selection");
+    wrap.style.opacity = '1';
+    wrap.style.transform = 'none';
     currentFeaturedId = null;
 }
 
 async function delFeatured() {
-    if (!currentFeaturedId) return;
-    await del(currentFeaturedId);
+    if (currentFeaturedId) await del(currentFeaturedId);
 }
 
 async function upload() {
@@ -165,13 +367,12 @@ async function upload() {
     setStatus("Uploading...");
     const res = await fetch(`${apiBase}/api/gallery/upload`, { method: "POST", body: fd });
     const text = await res.text();
-
     if (!res.ok) {
         setStatus(`Upload failed: ${res.status} ${text}`, true);
         return;
     }
 
-    setStatus("Uploaded");
+    setStatus("Uploaded ✅");
     await loadGallery();
 }
 
@@ -186,13 +387,12 @@ async function del(imageId) {
         `${apiBase}/api/gallery/${imageId}?memberId=${encodeURIComponent(memberId)}`,
         { method: "DELETE" }
     );
-
     if (!res.ok) {
         setStatus(`Delete failed: ${res.status}`, true);
         return;
     }
 
-    setStatus("Deleted");
+    setStatus("Deleted ✅");
     resetFeatured();
     await loadGallery();
 }
@@ -204,11 +404,6 @@ function setStatus(msg, isError = false) {
 }
 
 function escapeHtml(s) {
-    return String(s).replace(/[&<>"']/g, m => ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#039;"
-    }[m]));
+    return String(s).replace(/[&<>"']/g, m =>
+        ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;" }[m]));
 }
