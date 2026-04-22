@@ -1,9 +1,11 @@
 let currentFeaturedId = null;
+let currentTab = 'public';
+let galleryData = {
+    public: [],
+    private: []
+};
 
 document.addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('.demo-cell').forEach(cell => {
-        cell.addEventListener('click', () => flyToFeatured(cell));
-    });
     runLoader();
 });
 
@@ -124,6 +126,28 @@ function normalizePrivacy(value) {
     return String(value || "").trim().toLowerCase();
 }
 
+// Switch between Public and Private gallery tabs
+function switchTab(tab) {
+    currentTab = tab;
+
+    // Update tab button states
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === tab);
+    });
+
+    // Show/hide gallery sections
+    const publicSection = document.getElementById('publicSection');
+    const privateSection = document.getElementById('privateSection');
+
+    if (tab === 'public') {
+        publicSection.style.display = 'block';
+        privateSection.style.display = 'none';
+    } else {
+        publicSection.style.display = 'none';
+        privateSection.style.display = 'block';
+    }
+}
+
 async function loadGallery() {
     const apiBase = document.getElementById("apiBase").value.trim();
     const memberId = document.getElementById("memberId").value.trim();
@@ -131,26 +155,42 @@ async function loadGallery() {
     const publicGrid = document.getElementById("publicGrid");
     const privateGrid = document.getElementById("privateGrid");
 
-    setStatus("Loading...");
+    // Show loading state for both tabs
+    showLoadingState('public', true);
+    showLoadingState('private', true);
+    hideEmptyState('public');
+    hideEmptyState('private');
 
+    // Clear existing items
     publicGrid.querySelectorAll('.honeycomb-cell:not(.honeycomb-hidden)').forEach(el => el.remove());
     privateGrid.querySelectorAll('.honeycomb-cell:not(.honeycomb-hidden)').forEach(el => el.remove());
 
     resetFeatured();
 
+    // Fetch data from API
     const res = await fetch(`${apiBase}/api/gallery/${encodeURIComponent(memberId)}`);
     if (!res.ok) {
+        showLoadingState('public', false);
+        showLoadingState('private', false);
         setStatus(`Load failed: ${res.status}`, true);
         return;
     }
 
     const items = await res.json();
 
+    // Filter items by privacy field
     const publicItems = items.filter(it => normalizePrivacy(it.Private) === "pub");
     const privateItems = items.filter(it => normalizePrivacy(it.Private) === "pvt");
 
-    setStatus(`Loaded ${items.length} item(s)`);
+    // Store data for tab switching
+    galleryData.public = publicItems;
+    galleryData.private = privateItems;
 
+    // Hide loading state
+    showLoadingState('public', false);
+    showLoadingState('private', false);
+
+    // Update counts
     const publicCountEl = document.getElementById("publicGalleryCount");
     const privateCountEl = document.getElementById("privateGalleryCount");
 
@@ -162,8 +202,20 @@ async function loadGallery() {
         privateCountEl.textContent = `${privateItems.length} image${privateItems.length !== 1 ? "s" : ""}`;
     }
 
-    renderGalleryItems(publicItems, publicGrid);
-    renderGalleryItems(privateItems, privateGrid);
+    // Show empty state if no items, otherwise render gallery
+    if (publicItems.length === 0) {
+        showEmptyState('public');
+    } else {
+        renderGalleryItems(publicItems, publicGrid);
+    }
+
+    if (privateItems.length === 0) {
+        showEmptyState('private');
+    } else {
+        renderGalleryItems(privateItems, privateGrid);
+    }
+
+    setStatus(`Loaded ${items.length} item(s)`);
 }
 
 function renderGalleryItems(items, grid) {
@@ -406,4 +458,41 @@ function setStatus(msg, isError = false) {
 function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, m =>
         ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;" }[m]));
+}
+
+// Show or hide loading state for a specific tab
+function showLoadingState(tab, show) {
+    const loadingEl = document.getElementById(`${tab}Loading`);
+    const gridEl = document.getElementById(`${tab}Grid`);
+
+    if (loadingEl) {
+        loadingEl.style.display = show ? 'flex' : 'none';
+    }
+
+    if (gridEl) {
+        gridEl.style.display = show ? 'none' : 'block';
+    }
+}
+
+// Show empty state for a specific tab
+function showEmptyState(tab) {
+    const emptyEl = document.getElementById(`${tab}Empty`);
+    const gridEl = document.getElementById(`${tab}Grid`);
+
+    if (emptyEl) {
+        emptyEl.style.display = 'flex';
+    }
+
+    if (gridEl) {
+        gridEl.style.display = 'none';
+    }
+}
+
+// Hide empty state for a specific tab
+function hideEmptyState(tab) {
+    const emptyEl = document.getElementById(`${tab}Empty`);
+
+    if (emptyEl) {
+        emptyEl.style.display = 'none';
+    }
 }
