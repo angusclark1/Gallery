@@ -2,10 +2,103 @@ let currentFeaturedId = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.demo-cell').forEach(cell => {
-        cell.addEventListener('click', () => flyToFeatured(cell));
+        cell.addEventListener('click', () => {
+            flyToFeatured(cell);
+            openModal(cell);
+        });
     });
+
+    const fileInput = document.getElementById("file");
+    if (fileInput) {
+        fileInput.addEventListener("change", handleFilePreview);
+    }
+
+    const modalImg = document.getElementById("modalImg");
+    if (modalImg) {
+        modalImg.addEventListener("click", closeModal);
+    }
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            closeModal();
+        }
+    });
+
     runLoader();
 });
+
+function handleFilePreview(event) {
+    const file = event.target.files[0];
+    const previewWrap = document.getElementById("uploadPreviewWrap");
+    const previewImg = document.getElementById("uploadPreview");
+
+    if (!file) {
+        previewWrap.classList.add("hidden");
+        previewImg.src = "";
+        return;
+    }
+
+    const imageUrl = URL.createObjectURL(file);
+    previewImg.src = imageUrl;
+    previewWrap.classList.remove("hidden");
+}
+
+function clearUploadForm() {
+    document.getElementById("title").value = "";
+    document.getElementById("description").value = "";
+    document.getElementById("privacy").value = "Pvt";
+    document.getElementById("file").value = "";
+
+    const previewWrap = document.getElementById("uploadPreviewWrap");
+    const previewImg = document.getElementById("uploadPreview");
+
+    if (previewWrap && previewImg) {
+        previewWrap.classList.add("hidden");
+        previewImg.src = "";
+    }
+}
+
+function setGridMessage(grid, message, type = "info", showRetry = false) {
+    grid.querySelectorAll('.honeycomb-cell:not(.honeycomb-hidden)').forEach(el => el.remove());
+    grid.querySelectorAll(".gallery-state-message").forEach(el => el.remove());
+
+    const messageEl = document.createElement("li");
+    messageEl.className = `gallery-state-message ${type}`;
+
+    const icon = document.createElement("span");
+    icon.className = "gallery-state-icon";
+
+    if (type === "loading") icon.textContent = "";
+    else if (type === "empty") icon.textContent = "◌";
+    else if (type === "error") icon.textContent = "!";
+    else icon.textContent = "•";
+
+    const text = document.createElement("span");
+    text.className = "gallery-state-text";
+    text.textContent = message;
+
+    messageEl.appendChild(icon);
+    messageEl.appendChild(text);
+
+    if (showRetry) {
+        const retryBtn = document.createElement("button");
+        retryBtn.className = "state-retry-btn";
+        retryBtn.textContent = "Retry";
+        retryBtn.addEventListener("click", loadGallery);
+        messageEl.appendChild(retryBtn);
+    }
+
+    const filler = grid.querySelector('.honeycomb-hidden');
+    if (filler) {
+        grid.insertBefore(messageEl, filler);
+    } else {
+        grid.appendChild(messageEl);
+    }
+}
+
+function clearGridMessages(grid) {
+    grid.querySelectorAll(".gallery-state-message").forEach(el => el.remove());
+}
 
 function runLoader() {
     const loaderScreen = document.getElementById('loaderScreen');
@@ -131,42 +224,85 @@ async function loadGallery() {
     const publicGrid = document.getElementById("publicGrid");
     const privateGrid = document.getElementById("privateGrid");
 
-    setStatus("Loading...");
+    if (!memberId) {
+        setStatus("Member ID required. Please enter a Member ID before loading the gallery.", true);
+        setGridMessage(publicGrid, "Enter a Member ID and click Load Gallery.", "empty");
+        setGridMessage(privateGrid, "Enter a Member ID and click Load Gallery.", "empty");
+        return;
+    }
+
+    setStatus("Loading gallery...");
+
+    publicGrid.classList.add("grid-updating");
+    privateGrid.classList.add("grid-updating");
 
     publicGrid.querySelectorAll('.honeycomb-cell:not(.honeycomb-hidden)').forEach(el => el.remove());
     privateGrid.querySelectorAll('.honeycomb-cell:not(.honeycomb-hidden)').forEach(el => el.remove());
 
+    clearGridMessages(publicGrid);
+    clearGridMessages(privateGrid);
+
+    setGridMessage(publicGrid, "Loading public images...", "loading");
+    setGridMessage(privateGrid, "Loading private images...", "loading");
+
     resetFeatured();
 
-    const res = await fetch(`${apiBase}/api/gallery/${encodeURIComponent(memberId)}`);
-    if (!res.ok) {
-        setStatus(`Load failed: ${res.status}`, true);
-        return;
+    try {
+        const res = await fetch(`${apiBase}/api/gallery/${encodeURIComponent(memberId)}`);
+
+        if (!res.ok) {
+            setStatus(`Load failed: server returned ${res.status}. Please check the API and try again.`, true);
+            setGridMessage(publicGrid, "Failed to load public gallery.", "error", true);
+            setGridMessage(privateGrid, "Failed to load private gallery.", "error", true);
+            return;
+        }
+
+        const items = await res.json();
+
+        clearGridMessages(publicGrid);
+        clearGridMessages(privateGrid);
+
+        const publicItems = items.filter(it => normalizePrivacy(it.Private) === "pub");
+        const privateItems = items.filter(it => normalizePrivacy(it.Private) === "pvt");
+
+        const publicCountEl = document.getElementById("publicGalleryCount");
+        const privateCountEl = document.getElementById("privateGalleryCount");
+
+        if (publicCountEl) {
+            publicCountEl.textContent = `${publicItems.length} image${publicItems.length !== 1 ? "s" : ""}`;
+        }
+
+        if (privateCountEl) {
+            privateCountEl.textContent = `${privateItems.length} image${privateItems.length !== 1 ? "s" : ""}`;
+        }
+
+        setStatus(`Loaded ${items.length} item(s)`);
+
+        if (publicItems.length === 0) {
+            setGridMessage(publicGrid, "No public images yet. Upload a public image to display it here.", "empty");
+        } else {
+            renderGalleryItems(publicItems, publicGrid);
+        }
+
+        if (privateItems.length === 0) {
+            setGridMessage(privateGrid, "No private images yet. Upload a private image to display it here.", "empty");
+        } else {
+            renderGalleryItems(privateItems, privateGrid);
+        }
+
+    } catch (error) {
+        setStatus("API error: cannot connect to the server. Please check Docker, API Base, and network connection.", true);
+        setGridMessage(publicGrid, "API error. Unable to load public gallery.", "error", true);
+        setGridMessage(privateGrid, "API error. Unable to load private gallery.", "error", true);
+    } finally {
+        publicGrid.classList.remove("grid-updating");
+        privateGrid.classList.remove("grid-updating");
     }
-
-    const items = await res.json();
-
-    const publicItems = items.filter(it => normalizePrivacy(it.Private) === "pub");
-    const privateItems = items.filter(it => normalizePrivacy(it.Private) === "pvt");
-
-    setStatus(`Loaded ${items.length} item(s)`);
-
-    const publicCountEl = document.getElementById("publicGalleryCount");
-    const privateCountEl = document.getElementById("privateGalleryCount");
-
-    if (publicCountEl) {
-        publicCountEl.textContent = `${publicItems.length} image${publicItems.length !== 1 ? "s" : ""}`;
-    }
-
-    if (privateCountEl) {
-        privateCountEl.textContent = `${privateItems.length} image${privateItems.length !== 1 ? "s" : ""}`;
-    }
-
-    renderGalleryItems(publicItems, publicGrid);
-    renderGalleryItems(privateItems, privateGrid);
 }
 
 function renderGalleryItems(items, grid) {
+    clearGridMessages(grid);
+
     const filler = grid.querySelector('.honeycomb-hidden');
 
     items.forEach((it, i) => {
@@ -184,17 +320,20 @@ function renderGalleryItems(items, grid) {
         li.innerHTML = `
             <div class="hex-shape">
                 ${
-            imgSrc
-                ? `<img class="hex-img" src="${imgSrc}" alt="${escapeHtml(it.Title || '')}" />`
-                : `<div class="hex-img hex-no-preview">No preview</div>`
-        }
+                    imgSrc
+                        ? `<img class="hex-img" src="${imgSrc}" alt="${escapeHtml(it.Title || '')}" />`
+                        : `<div class="hex-img hex-no-preview">No preview</div>`
+                }
                 <div class="hex-overlay">
                     <span class="hex-label">${escapeHtml(it.Title || "Untitled")}</span>
                 </div>
             </div>
         `;
 
-        li.addEventListener("click", () => flyToFeatured(li));
+        li.addEventListener("click", () => {
+            flyToFeatured(li);
+            openModal(li);
+        });
 
         if (filler) grid.insertBefore(li, filler);
         else grid.appendChild(li);
@@ -354,8 +493,29 @@ async function upload() {
     const privacy = document.getElementById("privacy").value;
     const file = document.getElementById("file").files[0];
 
-    if (!memberId) return setStatus("MemberID required", true);
-    if (!file) return setStatus("Choose a file first", true);
+    if (!apiBase) {
+        return setStatus("Upload failed: API Base is required.", true);
+    }
+
+    if (!memberId) {
+        return setStatus("Upload failed: Member ID is required.", true);
+    }
+
+    if (!title) {
+        return setStatus("Upload failed: Add Title before uploading.", true);
+    }
+
+    if (!description) {
+        return setStatus("Upload failed: Add Description before uploading.", true);
+    }
+
+    if (!file) {
+        return setStatus("Upload failed: please choose an image file first.", true);
+    }
+
+    if (!["image/jpeg", "image/png"].includes(file.type)) {
+        return setStatus("Upload failed: only JPG and PNG images are allowed.", true);
+    }
 
     const fd = new FormData();
     fd.append("memberId", memberId);
@@ -364,16 +524,50 @@ async function upload() {
     fd.append("privacy", privacy);
     fd.append("file", file);
 
-    setStatus("Uploading...");
-    const res = await fetch(`${apiBase}/api/gallery/upload`, { method: "POST", body: fd });
-    const text = await res.text();
-    if (!res.ok) {
-        setStatus(`Upload failed: ${res.status} ${text}`, true);
-        return;
-    }
+    try {
+        setStatus("Uploading image...");
 
-    setStatus("Uploaded ✅");
-    await loadGallery();
+        const res = await fetch(`${apiBase}/api/gallery/upload`, {
+            method: "POST",
+            body: fd
+        });
+
+        const text = await res.text();
+
+        if (!res.ok) {
+            let message = `Upload failed: server returned ${res.status}.`;
+
+            if (res.status === 400) {
+                message = "Upload failed: invalid image data or missing required fields.";
+            } else if (res.status === 404) {
+                message = "Upload failed: upload endpoint was not found. Please check the API Base URL.";
+            } else if (res.status === 413) {
+                message = "Upload failed: the image file is too large.";
+            } else if (res.status >= 500) {
+                message = "Upload failed: server error. Please try again later.";
+            }
+
+            if (text) {
+                message += ` Details: ${text}`;
+            }
+
+            setStatus(message, true);
+            return;
+        }
+
+        clearUploadForm();
+        await loadGallery();
+
+        setStatus("Uploaded successfully ✅ The gallery has been refreshed.", false, "success");
+
+        document.querySelector(".gallery-main")?.scrollIntoView({
+            behavior: "smooth",
+            block: "start"
+        });
+
+    } catch (error) {
+        setStatus("Upload failed: cannot connect to the API server. Please check Docker, API Base, and network connection.", true);
+    }
 }
 
 async function del(imageId) {
@@ -382,28 +576,76 @@ async function del(imageId) {
 
     if (!confirm("Delete image?")) return;
 
-    setStatus("Deleting...");
-    const res = await fetch(
-        `${apiBase}/api/gallery/${imageId}?memberId=${encodeURIComponent(memberId)}`,
-        { method: "DELETE" }
-    );
-    if (!res.ok) {
-        setStatus(`Delete failed: ${res.status}`, true);
-        return;
-    }
+    try {
+        setStatus("Deleting...");
+        const res = await fetch(
+            `${apiBase}/api/gallery/${imageId}?memberId=${encodeURIComponent(memberId)}`,
+            { method: "DELETE" }
+        );
 
-    setStatus("Deleted ✅");
-    resetFeatured();
-    await loadGallery();
+        if (!res.ok) {
+            setStatus(`Delete failed: ${res.status}`, true);
+            return;
+        }
+
+        setStatus("Deleted successfully ✅");
+        resetFeatured();
+        await loadGallery();
+
+    } catch (error) {
+        setStatus("Delete failed: API connection error", true);
+    }
 }
 
-function setStatus(msg, isError = false) {
+function setStatus(msg, isError = false, type = "") {
     const el = document.getElementById("status");
     el.textContent = msg;
-    el.className = "status-msg" + (isError ? " status-error" : "");
+
+    if (type === "success") {
+        el.className = "status-msg status-success";
+    } else {
+        el.className = "status-msg" + (isError ? " status-error" : "");
+    }
 }
 
 function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, m =>
         ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;" }[m]));
+}
+
+function openModal(cell) {
+    const modal = document.getElementById("imageModal");
+    const modalImg = document.getElementById("modalImg");
+
+    modalImg.src = cell.dataset.src || "";
+    document.getElementById("modalTitle").textContent = cell.dataset.title || "Untitled";
+    document.getElementById("modalDesc").textContent = cell.dataset.desc || "No description";
+    document.getElementById("modalMeta").textContent = `Privacy: ${cell.dataset.privacy || "Unknown"}`;
+
+    modal.classList.remove("hidden", "closing");
+    void modal.offsetWidth;
+    modal.classList.add("active");
+
+    document.body.style.overflow = "hidden";
+}
+
+function closeModal() {
+    const modal = document.getElementById("imageModal");
+
+    if (modal.classList.contains("hidden")) return;
+
+    modal.classList.remove("active");
+    modal.classList.add("closing");
+
+    setTimeout(() => {
+        modal.classList.add("hidden");
+        modal.classList.remove("closing");
+        document.body.style.overflow = "";
+    }, 180);
+}
+
+function handleModalBackdrop(event) {
+    if (event.target.id === "imageModal") {
+        closeModal();
+    }
 }
