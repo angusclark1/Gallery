@@ -11,6 +11,21 @@
 </head>
 <body>
 
+<!-- IMAGE MODAL -->
+<div id="imageModal" class="modal hidden" onclick="handleModalBackdrop(event)">
+    <div class="modal-content">
+        <button class="modal-close" type="button" aria-label="Close modal" onclick="closeModal()">×</button>
+
+        <img id="modalImg" class="modal-img" src="" alt="Expanded gallery image" />
+
+        <div class="modal-info">
+            <h2 id="modalTitle"></h2>
+            <p id="modalDesc"></p>
+            <p id="modalMeta"></p>
+        </div>
+    </div>
+</div>
+
 <!-- LOADING SCREEN -->
 <div class="loader-screen" id="loaderScreen">
     <div class="loader-hex-wrap">
@@ -26,16 +41,16 @@
     <div class="header-left">
         <h1 class="header-title">Cobble Gallery</h1>
         <span class="header-eyebrow">
-                A microservice for uploading
-                viewing and deleting images
-                through the Cobble Gallery API
-            </span>
+            A microservice for uploading
+            viewing and deleting images
+            through the Cobble Gallery API
+        </span>
     </div>
     <div class="header-right">
-            <span class="live-badge">
-                <span class="live-dot"></span>
-                Live
-            </span>
+        <span class="live-badge">
+            <span class="live-dot"></span>
+            Live
+        </span>
     </div>
 </header>
 
@@ -74,7 +89,10 @@
 
             <label for="file">Image File</label>
             <input id="file" type="file" accept="image/jpeg,image/png" />
-
+<div id="uploadPreviewWrap" class="upload-preview-wrap hidden">
+    <p class="preview-label">Preview</p>
+    <img id="uploadPreview" class="upload-preview" src="" alt="Selected image preview" />
+</div>
             <button class="btn-primary" onclick="upload()">Upload Image</button>
         </section>
 
