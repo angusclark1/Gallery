@@ -548,8 +548,8 @@ async function upload() {
             }
 
             if (text) {
-                message += ` Details: ${text}`;
-            }
+    console.error("Upload server details:", text);
+}
 
             setStatus(message, true);
             return;
