@@ -1,349 +1,152 @@
-## Backend Documentation
+# Cobble Gallery Microservice
 
-### Cobble Gallery Microservice Backend Overview
+## Overview
 
-#### Purpose
-
-The Cobble Gallery microservice provides a backend for uploading, viewing, and deleting gallery images. It is designed to integrate with the Cobble SQL database and utilise existing stored procedures, ensuring consistency with backend patterns used across Cobble platforms.
+The Cobble Gallery microservice provides a backend for uploading, viewing, updating, and deleting gallery images for a member. It integrates with the Cobble SQL database via an existing stored procedure, following the same architectural pattern used across Cobble microservices.
 
 The service currently supports:
-- Loading gallery images for a member
-- Uploading new images
+
+- Loading all gallery images for a member
+- Uploading new images (title, description, privacy, file)
+- Updating image metadata or replacing an image file
 - Deleting images
-- Storing both metadata and binary image data in the database
+
+```
+Frontend UI  →  ASP.NET Core API  →  Stored Procedure  →  SQL Server (Cobble)
+```
 
 ---
 
-### Architecture
+## How to Run
 
-The backend is composed of three primary layers:
+### Prerequisites
 
-#### 1. API Layer
+- Docker Desktop installed and running
+- Git installed
 
-An ASP.NET Core Web API that exposes endpoints consumed by the frontend.
+### Start the service
 
-Responsibilities:
-- Receiving requests from the UI
-- Validating input data
-- Mapping requests to stored procedure calls
-- Returning structured JSON responses
+From the `Cobble.GalleryService` directory:
 
----
-
-#### 2. Database Connection Layer
-
-The backend connects to SQL Server using the following connection string:
-
-
-Server=cobble-sql,1433;Database=Cobble;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;
-
-
-This enables communication between the API container and the SQL Server container within Docker.
-
----
-
-#### 3. Stored Procedure Layer
-
-The backend relies on the Cobble stored procedure:
-
-
-sp_gal_Gallery_CRUD
-
-
-This ensures that database logic remains centralised and consistent with the broader Cobble architecture.
-
----
-
-### Core Backend Files
-
-#### Program.cs
-
-Responsible for application startup and configuration.
-
-Key responsibilities:
-- Initialising the ASP.NET application
-- Registering services
-- Configuring Swagger
-- Setting up database connection dependency injection
-- Mapping controllers
-
----
-
-#### GalleryController.cs
-
-Handles all gallery-related API operations.
-
-Key responsibilities:
-- Exposing endpoints
-- Handling incoming requests
-- Executing stored procedures
-- Returning formatted responses
-
-Endpoints:
-- `GET /api/gallery/{memberId}`
-- `POST /api/gallery/upload`
-- `DELETE /api/gallery/{imageId}?memberId=...`
-
----
-
-### Endpoint Behaviour
-
-#### Load Gallery
-
-**Endpoint**
-
-GET /api/gallery/{memberId}
-
-
-**Flow**
-1. Frontend sends memberId
-2. Controller calls stored procedure with SELECT action
-3. Database returns gallery records
-4. Backend maps results to JSON
-5. Frontend renders images
-
----
-
-#### Upload Image
-
-**Endpoint**
-
-POST /api/gallery/upload
-
-
-**Input**
-- memberId
-- title
-- description
-- privacy
-- file
-
-**Flow**
-1. Frontend sends form data
-2. Backend processes input and file
-3. Stored procedure inserts into `gal_Gallery`
-4. Stored procedure inserts into `gal_Gallery_Images`
-5. Backend returns success or error
-
----
-
-#### Delete Image
-
-**Endpoint**
-
-DELETE /api/gallery/{imageId}?memberId=...
-
-
-**Flow**
-1. Frontend sends imageId and memberId
-2. Stored procedure deletes image data
-3. Stored procedure deletes metadata
-4. Backend returns success
-
----
-
-### Database Tables
-
-#### gal_Gallery
-
-Stores metadata and thumbnails:
-- MemberID
-- ImageID
-- Title
-- Description
-- Private
-- Image_Thumbnail
-- PostDate
-
----
-
-#### gal_Gallery_Images
-
-Stores full image data:
-- MemberID
-- ImageID
-- Image_data
-- PostDate
-
----
-
-### Use of Stored Procedures
-
-The backend relies on stored procedures to:
-- Maintain consistency across Cobble services
-- Centralise database logic
-- Reduce duplication in API code
-- Align with existing system design
-
----
-
-### Docker Setup
-
-The service runs using Docker Compose, which includes:
-- SQL Server container
-- Database restore container
-- API container
-- UI container
-
-Run locally using:
-
-
+```bash
 docker compose up --build
+```
 
+This starts four containers:
 
----
+| Container | Role |
+|---|---|
+| `cobble-sql` | SQL Server instance |
+| `cobble-db-restore` | Restores the Cobble database and applies schema fixes on startup |
+| `cobble-gallery-api` | ASP.NET Core API |
+| `cobble-gallery-ui` | Frontend UI (served via Nginx) |
 
-### Limitations and Future Work
+### Reset the environment
 
-Current limitations:
-- MemberID is manually provided in the UI
-- No integration with Cobble user/session service
-- Public/private logic is only enforced in the frontend
+To fully reset all containers and volumes:
 
-Future improvements:
-- Integrate authentication and session handling
-- Enforce access control in the backend
-- Support tenancy across Cobble platforms
-
----
-
-## Database Change Documentation
-
-### Background
-
-During development, an issue was identified in the gallery upload process involving the stored procedure:
-
-
-sp_gal_Gallery_CRUD
-
-
-This procedure inserts data into:
-- `gal_Gallery` (metadata)
-- `gal_Gallery_Images` (binary image data)
-
-Both inserts use the same `ImageID`.
-
----
-
-### Problem
-
-The schema between the two tables was inconsistent:
-
-#### gal_Gallery
-- ImageID defined as `BIGINT`
-- Value manually inserted
-
-#### gal_Gallery_Images
-- ImageID defined as `IDENTITY`
-- Value auto-generated by SQL Server
-
-This caused a conflict when inserting:
-
-
-Cannot insert explicit value for identity column when IDENTITY_INSERT is set to OFF
-
-
----
-
-### Impact
-
-- Metadata insert succeeded
-- Image appeared in the UI
-- Full image insert failed
-- API returned a 500 error
-- Upload appeared successful but was incomplete
-
----
-
-### Expected Behaviour
-
-The stored procedure is designed to control `ImageID` across both tables.
-
-Therefore:
-- Both tables must accept the same manually assigned ID
-- No identity column should be used in the child table
-
----
-
-### Solution
-
-The fix involved updating `gal_Gallery_Images` to match the parent table.
-
-Changes:
-- Removed IDENTITY from ImageID
-- Set ImageID to `BIGINT NOT NULL`
-- Matched MemberID type to parent table
-- Recreated primary and foreign keys
-
----
-
-### Updated Table Structure
-
-
-MemberID NCHAR(128) NOT NULL
-ImageID BIGINT NOT NULL
-Image_data VARBINARY(MAX) NOT NULL
-PostDate DATE NULL
-
-
-Constraints:
-- Primary key: `(MemberID, ImageID)`
-- Foreign key referencing `gal_Gallery(MemberID, ImageID)`
-
----
-
-### Restore Script
-
-The fix is implemented in:
-
-
-db/restore.sql
-
-
----
-
-### Script Behaviour
-
-1. Restores the Cobble database
-2. Checks if ImageID is incorrectly set as identity
-3. If required:
-   - Drops foreign key
-   - Creates corrected table
-   - Copies data
-   - Replaces old table
-   - Recreates foreign key
-4. Skips execution if already fixed
-
----
-
-### Importance
-
-This script ensures:
-- Consistent schema across all environments
-- No manual intervention required
-- Reliable upload functionality
-
----
-
-### Setup Instructions
-
-To ensure the fix is applied:
-
-
+```bash
 docker compose down -v
 docker compose up --build
+```
 
-
-The `-v` flag removes existing volumes so the database is rebuilt correctly.
+The `-v` flag removes existing volumes so the database is rebuilt and all schema fixes are reapplied from scratch.
 
 ---
 
-### Summary
+## Access URLs
 
-The issue was resolved by:
-- Identifying schema mismatch in ImageID handling
-- Aligning the child table with the parent table
-- Rebuilding constraints
-- Automating the fix through the restore script
+| Resource | URL |
+|---|---|
+| Frontend UI | http://localhost:3000 |
+| Swagger (API docs) | http://localhost:8080/swagger |
+| API base | http://localhost:8080 |
+| SQL Server port | localhost:1433 |
 
-This ensures stable and consistent behaviour across all development environments.
+---
+
+## Project Structure
+
+```
+Cobble.GalleryService/
+├── docker-compose.yml
+├── Controllers/
+│   └── GalleryController.cs
+├── Program.cs
+├── Dockerfile
+├── db/
+│   └── restore.sql         ← restores Cobble database and applies schema fixes
+└── frontend/
+    └── Dockerfile
+```
+
+---
+
+## Key Backend Files
+
+| File | Purpose |
+|---|---|
+| `GalleryController.cs` | Supports full CRUD behaviour for gallery images. Exposes four endpoints: listing images by member, uploading a new image (multipart/form-data, up to 20 MB), updating image metadata or replacing an image file, and deleting an image. Reads binary image data from the database and converts it to Base64 data URLs so the frontend can render images directly without a separate file server. Routes all operations through the `sp_gal_Gallery_CRUD` stored procedure using an Action parameter (SELECT / INSERT / UPDATE / DELETE). Also defines the `UploadGalleryDto` and `UpdateGalleryDto` request model classes inline. |
+| `Program.cs` | Configures API services, Swagger, and a scoped `IDbConnection` (SqlConnection) injected into the controller for database access. Registers a permissive CORS policy allowing any origin, header, and method, suitable for development use across different frontend origins. |
+
+---
+
+## API Endpoints
+
+```
+GET    /api/gallery/{memberId}              List all images for a member
+POST   /api/gallery/upload                  Upload a new image (multipart/form-data)
+PUT    /api/gallery/{imageId}               Update metadata or replace image file
+DELETE /api/gallery/{imageId}?memberId=...  Delete an image
+```
+
+### Upload fields (multipart/form-data)
+
+| Field | Required | Notes |
+|---|---|---|
+| `memberId` | Yes | Member identifier |
+| `file` | Yes | Image file, max 20 MB |
+| `title` | No | Display title |
+| `description` | No | Image description |
+| `privacy` | No | e.g. `Pub` / `Pvt` |
+
+---
+
+## Data Model
+
+### Tables
+
+| Table | Purpose |
+|---|---|
+| `gal_Gallery` | Stores image metadata and thumbnail — MemberID, ImageID, Title, Description, Private, Image_Thumbnail, PostDate |
+| `gal_Gallery_Images` | Stores full binary image data — MemberID, ImageID, Image_data, PostDate |
+
+Both tables share the same `(MemberID, ImageID)` primary key. `gal_Gallery_Images` has a foreign key referencing `gal_Gallery`.
+
+### Stored Procedure
+
+| Procedure | Purpose |
+|---|---|
+| `sp_gal_Gallery_CRUD` | Handles all SELECT / INSERT / UPDATE / DELETE operations for gallery images across both tables |
+
+---
+
+## How It Works
+
+1. Frontend sends an HTTP request to the API
+2. Controller validates input and, for uploads, reads the file into memory as a byte array
+3. Controller calls `sp_gal_Gallery_CRUD` with an `Action` parameter (SELECT / INSERT / UPDATE / DELETE)
+4. For reads, binary image data is converted to Base64 data URLs and returned as JSON
+5. Frontend renders images directly from the data URLs
+
+---
+
+## Database Schema Fix
+
+During development an issue was identified where `gal_Gallery_Images.ImageID` was defined as an `IDENTITY` column, conflicting with the stored procedure's attempt to insert an explicit `ImageID` matching the parent table.
+
+**Symptom:** Image metadata inserted successfully, but the full image insert failed with a 500 error.
+
+**Fix:** `gal_Gallery_Images.ImageID` was changed from `IDENTITY` to `BIGINT NOT NULL`, matching the parent table. The primary key `(MemberID, ImageID)` and foreign key referencing `gal_Gallery` were rebuilt.
+
+This fix is implemented in `db/restore.sql` and runs automatically on container startup. The script checks the current schema state before applying the fix, so it is safe to run repeatedly. Running `docker compose down -v && docker compose up --build` guarantees the fix is applied in all environments.
