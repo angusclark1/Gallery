@@ -1,3 +1,111 @@
+## How to run Gallery
+# How to Run the Cobble Gallery Microservice
+
+## Prerequisites
+
+Before running the Gallery microservice, ensure the following are installed and available:
+
+- Docker Desktop installed and running
+- Git installed
+- Access to the Gallery repository
+
+## 1. Clone the Repository
+
+Clone the Gallery repository and move into the project directory:
+
+```bash
+git clone <repo-url>
+cd Cobble.GalleryService
+2. Start the Application
+
+From the project root, run:
+
+docker compose up --build
+
+This will build and start the Gallery microservice environment.
+
+3. Open the Application
+
+Once the containers are running, open the following URLs:
+
+Frontend UI: http://localhost:3000/
+API: http://localhost:8080/
+Swagger/API documentation: http://localhost:8080/swagger
+4. Stop the Application
+
+To stop the running containers, use:
+
+docker compose down
+5. Full Reset
+
+To stop the containers and remove associated volumes, including the database volume, use:
+
+docker compose down -v
+
+Then rebuild using:
+
+docker compose up --build
+Notes
+
+This microservice is intended to run locally using Docker for demonstration, assessment, and handover purposes.
+
+The submitted repository contains the source code and configuration required to run the Gallery component in a local development environment.
+
+bro you're breaking it up ONE MD THAT I CAN COPY 
+Thought for a few seconds
+
+Copy everything below exactly:
+
+How to Run the Cobble Gallery Microservice
+Prerequisites
+
+Before running the Gallery microservice, ensure the following are installed and available:
+
+Docker Desktop installed and running
+Git installed
+Access to the Gallery repository
+1. Clone the Repository
+
+Clone the Gallery repository and move into the project directory:
+
+git clone <repo-url>
+cd Cobble.GalleryService
+2. Start the Application
+
+From the project root, run:
+
+docker compose up --build
+
+This will build and start the Gallery microservice environment.
+
+3. Open the Application
+
+Once the containers are running, open the following URLs:
+
+Frontend UI: http://localhost:3000/
+API: http://localhost:8080/
+Swagger/API documentation: http://localhost:8080/swagger
+4. Stop the Application
+
+To stop the running containers, use:
+
+docker compose down
+5. Full Reset
+
+To stop the containers and remove associated volumes, including the database volume, use:
+
+docker compose down -v
+
+Then rebuild using:
+
+docker compose up --build
+Notes
+
+This microservice is intended to run locally using Docker for demonstration, assessment, and handover purposes.
+
+The submitted repository contains the source code and configuration required to run the Gallery component in a local development environment.
+
+
 ## Backend Documentation
 
 ### Cobble Gallery Microservice Backend Overview
