@@ -807,3 +807,305 @@ body::before {
     0%   { transform: rotateY(0deg); }
     100% { transform: rotateY(360deg); }
 }
+/* ===== MODAL ===== */
+.modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(8, 8, 10, 0.86);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 12000;
+    padding: 24px;
+}
+
+.modal.hidden {
+    display: none;
+}
+
+.modal-content {
+    position: relative;
+    width: min(760px, 92vw);
+    max-height: 88vh;
+    overflow-y: auto;
+    background: var(--surface);
+    border: 1px solid var(--border-hi);
+    box-shadow: var(--shadow-lg);
+    padding: 24px;
+}
+
+.modal-img {
+    width: 100%;
+    max-height: 60vh;
+    object-fit: contain;
+    display: block;
+    background: #000;
+    border: 1px solid var(--border);
+    margin-bottom: 18px;
+}
+
+.modal-info {
+    color: var(--text);
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.modal-info h2 {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text);
+}
+
+.modal-info p {
+    font-size: 0.78rem;
+    line-height: 1.7;
+    color: var(--text-subtle);
+    letter-spacing: 0.03em;
+}
+
+.modal-close {
+    position: absolute;
+    top: 10px;
+    right: 14px;
+    border: none;
+    background: transparent;
+    color: var(--text);
+    font-size: 1.8rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+}
+
+.modal-close:hover {
+    color: var(--accent);
+}
+/* ================================
+   UPLOAD PREVIEW
+================================ */
+.upload-preview-wrap {
+    margin-top: 12px;
+    border: 1px solid var(--border-hi);
+    padding: 10px;
+    background: rgba(255,255,255,0.03);
+}
+
+.upload-preview-wrap.hidden {
+    display: none;
+}
+
+.preview-label {
+    font-size: 0.58rem;
+    color: var(--text-subtle);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+}
+
+.upload-preview {
+    width: 100%;
+    max-height: 180px;
+    object-fit: cover;
+    display: block;
+    border: 1px solid var(--border);
+    background: #000;
+}
+
+/* ================================
+   GALLERY STATES
+================================ */
+.gallery-state-message {
+    list-style: none;
+    width: 100%;
+    min-height: 84px;
+    margin: 18px 0;
+    padding: 24px;
+    border: 1px solid var(--border-hi);
+    background: rgba(255,255,255,0.03);
+    color: var(--text-subtle);
+    font-size: 0.78rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.gallery-state-message.loading {
+    color: var(--accent-warm);
+    position: relative;
+}
+
+.gallery-state-message.loading::before {
+    content: "";
+    width: 14px;
+    height: 14px;
+    border: 2px solid var(--border-hi);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    margin-right: 12px;
+    animation: gallerySpin 0.8s linear infinite;
+}
+
+.gallery-state-message.empty {
+    color: var(--text-muted);
+    border-style: dashed;
+}
+
+.gallery-state-message.error {
+    color: var(--danger);
+    border-color: rgba(201,106,106,0.4);
+    background: rgba(201,106,106,0.08);
+}
+
+@keyframes gallerySpin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+}
+/* ================================
+   IMPROVED STATUS UI
+================================ */
+.status-msg {
+    margin-top: 8px;
+    padding: 10px 12px;
+    border: 1px solid var(--border-hi);
+    background: rgba(255,255,255,0.03);
+}
+
+.status-success {
+    color: #9be7b0;
+    border-color: rgba(155, 231, 176, 0.45);
+    background: rgba(155, 231, 176, 0.08);
+}
+
+.status-error {
+    color: var(--danger);
+    border-color: rgba(201,106,106,0.45);
+    background: rgba(201,106,106,0.08);
+}
+
+/* ================================
+   SMOOTHER GALLERY STATES
+================================ */
+.honeycomb {
+    transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.honeycomb.grid-updating {
+    opacity: 0.55;
+    transform: translateY(4px);
+}
+
+.gallery-state-message {
+    gap: 14px;
+    flex-direction: column;
+    text-align: center;
+    animation: stateFadeIn 0.28s ease forwards;
+}
+
+.gallery-state-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 1px solid var(--border-hi);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent-warm);
+    font-size: 1rem;
+}
+
+.gallery-state-message.loading {
+    flex-direction: row;
+}
+
+.gallery-state-message.loading .gallery-state-icon {
+    border: 2px solid var(--border-hi);
+    border-top-color: var(--accent);
+    animation: gallerySpin 0.8s linear infinite;
+}
+
+.gallery-state-message.loading::before {
+    display: none;
+}
+
+.gallery-state-message.empty .gallery-state-icon {
+    border-style: dashed;
+    color: var(--text-muted);
+}
+
+.gallery-state-message.error .gallery-state-icon {
+    color: var(--danger);
+    border-color: rgba(201,106,106,0.45);
+}
+
+.gallery-state-text {
+    max-width: 520px;
+    line-height: 1.7;
+}
+
+.state-retry-btn {
+    margin-top: 6px;
+    padding: 8px 18px;
+    border: 1px solid rgba(201,106,106,0.45);
+    background: transparent;
+    color: var(--danger);
+    font-family: 'Syne', sans-serif;
+    font-size: 0.65rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.state-retry-btn:hover {
+    background: var(--danger);
+    color: var(--bg);
+    border-color: var(--danger);
+}
+
+@keyframes stateFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ================================
+   MODAL UX IMPROVEMENT
+================================ */
+.modal {
+    opacity: 0;
+    transition: opacity 0.18s ease;
+}
+
+.modal.active {
+    opacity: 1;
+}
+
+.modal.closing {
+    opacity: 0;
+}
+
+.modal-content {
+    transform: translateY(12px) scale(0.96);
+    opacity: 0;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.modal.active .modal-content {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+}
+
+.modal-img {
+    cursor: zoom-out;
+}
