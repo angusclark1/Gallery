@@ -33,6 +33,10 @@ API: http://localhost:8080/
 Swagger/API documentation: http://localhost:8080/swagger
 4. Stop the Application
 
+Before Using Gallery - Load: 
+Member ID: c6571d79b8e86640af627aaa8a9a56489697ff68f1ffef7581f8b40b80cf5f5a
+API Base: http://localhost:8080
+
 To stop the running containers, use:
 
 docker compose down
